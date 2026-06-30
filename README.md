@@ -29,6 +29,7 @@ k8s/templates/
   ingress.yaml.tpl
 scripts/
   render-k8s.py
+  restore-github-ssh.sh
 examples/
   service-api.yml
   service-web.yml
@@ -36,6 +37,7 @@ examples/
   service-mcp.yml
 docs/
   cluster-bootstrap-microk8s.md
+  persistent-github-access.md
   migration-from-ecletica.md
 ```
 
@@ -81,6 +83,12 @@ Para gerar um kubeconfig namespace-scoped no MicroK8s, use:
 Kubernetes Secrets por app:
 
 - `<app_name>-secrets`: secrets da aplicacao, criado fora do CI.
+
+Credenciais de operador/runtime:
+
+- GitHub SSH deve ter fonte de verdade fora do cluster, como 1Password ou outro vault.
+- Kubernetes Secrets e arquivos em `~/.ssh` dentro de pods sao apenas copias operacionais.
+- Veja `docs/persistent-github-access.md` para restauracao apos rebuild do cluster.
 
 GitHub Variables opcionais:
 

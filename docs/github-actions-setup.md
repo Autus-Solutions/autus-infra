@@ -51,6 +51,8 @@ alias kubectl='microk8s kubectl'
 
 Use o conteudo de `/tmp/autus-prod-kubeconfig.yaml` como `KUBE_CONFIG`.
 
+Importante: `KUBE_CONFIG` tambem deve ser recuperavel de uma fonte externa ao cluster. O GitHub Secret e uma copia operacional para o CI; mantenha o kubeconfig bootstrap, tokens e credenciais de operador em 1Password ou outro vault. Para acesso SSH persistente do runtime ao GitHub, veja `docs/persistent-github-access.md`.
+
 ## 3. Configurar variables no GitHub Environment
 
 Environment recomendado:
