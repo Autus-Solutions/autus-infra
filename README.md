@@ -37,6 +37,7 @@ examples/
   service-mcp.yml
 docs/
   cluster-bootstrap-microk8s.md
+  migrate-microk8s-registry-to-ghcr.md
   persistent-github-access.md
   migration-from-ecletica.md
 ```
