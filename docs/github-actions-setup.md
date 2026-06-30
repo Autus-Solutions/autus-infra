@@ -42,7 +42,14 @@ Conteudo:
 microk8s config
 ```
 
-Use uma service account com acesso limitado ao namespace do projeto quando possivel.
+Preferencialmente, gere um kubeconfig limitado ao namespace:
+
+```bash
+alias kubectl='microk8s kubectl'
+./scripts/create-github-actions-kubeconfig.sh autus-prod > /tmp/autus-prod-kubeconfig.yaml
+```
+
+Use o conteudo de `/tmp/autus-prod-kubeconfig.yaml` como `KUBE_CONFIG`.
 
 ## 3. Configurar variables no GitHub Environment
 
@@ -108,4 +115,3 @@ microk8s kubectl get deploy,pod,svc,ingress -n autus-prod
 microk8s kubectl rollout status deployment/autus-api -n autus-prod
 microk8s kubectl logs -n autus-prod deploy/autus-api --tail=200
 ```
-

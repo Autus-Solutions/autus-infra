@@ -1,0 +1,23 @@
+name: Deploy MCP
+
+on:
+  workflow_dispatch:
+  push:
+    branches: ["main"]
+
+jobs:
+  deploy:
+    uses: Autus-Solutions/autus-infra/.github/workflows/reusable-k8s-build-deploy.yml@main
+    with:
+      app_name: autus-mcp
+      namespace: autus-prod
+      dockerfile: ./McpDockerfile
+      context: .
+      container_port: "8080"
+      health_path: /health
+      ingress_hosts: mcp.autus.solutions
+      environment_name: production
+      replicas: "1"
+    secrets:
+      KUBE_CONFIG: ${{ secrets.KUBE_CONFIG }}
+

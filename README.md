@@ -33,7 +33,9 @@ examples/
   service-api.yml
   service-web.yml
   service-worker.yml
+  service-mcp.yml
 docs/
+  cluster-bootstrap-microk8s.md
   migration-from-ecletica.md
 ```
 
@@ -70,6 +72,12 @@ GitHub Secrets:
 
 - `KUBE_CONFIG`: kubeconfig com acesso ao namespace alvo.
 
+Para gerar um kubeconfig namespace-scoped no MicroK8s, use:
+
+```bash
+./scripts/create-github-actions-kubeconfig.sh autus-prod > /tmp/autus-prod-kubeconfig.yaml
+```
+
 Kubernetes Secrets por app:
 
 - `<app_name>-secrets`: secrets da aplicacao, criado fora do CI.
@@ -90,4 +98,3 @@ CONTAINER_PORT=8080 \
 INGRESS_HOSTS=api.autus.solutions \
 python3 scripts/render-k8s.py
 ```
-
