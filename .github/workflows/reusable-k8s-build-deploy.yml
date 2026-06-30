@@ -1,0 +1,138 @@
+name: Reusable Kubernetes Build and Deploy
+
+on:
+  workflow_call:
+    inputs:
+      app_name:
+        required: true
+        type: string
+      namespace:
+        required: true
+        type: string
+      dockerfile:
+        required: false
+        type: string
+        default: ./Dockerfile
+      context:
+        required: false
+        type: string
+        default: .
+      container_port:
+        required: false
+        type: string
+        default: "8080"
+      health_path:
+        required: false
+        type: string
+        default: /health
+      ingress_hosts:
+        required: false
+        type: string
+        default: ""
+      environment_name:
+        required: false
+        type: string
+        default: staging
+      replicas:
+        required: false
+        type: string
+        default: "1"
+    secrets:
+      KUBE_CONFIG:
+        required: true
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build:
+    name: Build and Push Image
+    runs-on: ubuntu-latest
+    outputs:
+      image: ${{ steps.meta.outputs.image }}
+      branch_image: ${{ steps.meta.outputs.branch_image }}
+    steps:
+      - name: Checkout application
+        uses: actions/checkout@v4
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+
+      - name: Define image
+        id: meta
+        shell: bash
+        run: |
+          owner="$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')"
+          sha_tag="${GITHUB_SHA::12}"
+          image="ghcr.io/${owner}/${{ inputs.app_name }}:${sha_tag}"
+          branch_image="ghcr.io/${owner}/${{ inputs.app_name }}:${{ github.ref_name }}"
+          echo "image=${image}" >> "$GITHUB_OUTPUT"
+          echo "branch_image=${branch_image}" >> "$GITHUB_OUTPUT"
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ inputs.context }}
+          file: ${{ inputs.dockerfile }}
+          push: true
+          tags: |
+            ${{ steps.meta.outputs.image }}
+            ${{ steps.meta.outputs.branch_image }}
+
+  deploy:
+    name: Deploy to Kubernetes
+    needs: build
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment_name }}
+    concurrency:
+      group: deploy-${{ inputs.namespace }}-${{ inputs.app_name }}
+      cancel-in-progress: false
+    steps:
+      - name: Checkout Autus infra
+        uses: actions/checkout@v4
+        with:
+          repository: Autus-Solutions/autus-infra
+          path: .autus-infra
+
+      - name: Install kubectl
+        uses: azure/setup-kubectl@v4
+
+      - name: Configure kubeconfig
+        shell: bash
+        run: |
+          mkdir -p "$HOME/.kube"
+          printf '%s' '${{ secrets.KUBE_CONFIG }}' > "$HOME/.kube/config"
+          chmod 600 "$HOME/.kube/config"
+          if [ -n "${{ vars.KUBE_CONTEXT }}" ]; then
+            kubectl config use-context "${{ vars.KUBE_CONTEXT }}"
+          fi
+
+      - name: Render manifests
+        working-directory: .autus-infra
+        env:
+          APP_NAME: ${{ inputs.app_name }}
+          NAMESPACE: ${{ inputs.namespace }}
+          IMAGE: ${{ needs.build.outputs.image }}
+          CONTAINER_PORT: ${{ inputs.container_port }}
+          HEALTH_PATH: ${{ inputs.health_path }}
+          INGRESS_HOSTS: ${{ inputs.ingress_hosts }}
+          REPLICAS: ${{ inputs.replicas }}
+          INGRESS_CLASS_NAME: ${{ vars.INGRESS_CLASS_NAME || 'public' }}
+          TLS_CLUSTER_ISSUER: ${{ vars.TLS_CLUSTER_ISSUER }}
+        run: python3 scripts/render-k8s.py
+
+      - name: Apply manifests
+        working-directory: .autus-infra
+        run: |
+          kubectl apply -f rendered/deployment.yaml
+          if [ -f rendered/ingress.yaml ]; then
+            kubectl apply -f rendered/ingress.yaml
+          fi
+
+      - name: Validate rollout
+        run: kubectl rollout status deployment/${{ inputs.app_name }} -n ${{ inputs.namespace }} --timeout=180s

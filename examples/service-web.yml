@@ -1,0 +1,23 @@
+name: Deploy Web
+
+on:
+  workflow_dispatch:
+  push:
+    branches: ["main"]
+
+jobs:
+  deploy:
+    uses: Autus-Solutions/autus-infra/.github/workflows/reusable-k8s-build-deploy.yml@main
+    with:
+      app_name: autus-web
+      namespace: autus-prod
+      dockerfile: ./Dockerfile
+      context: .
+      container_port: "3000"
+      health_path: /
+      ingress_hosts: autus.solutions,www.autus.solutions
+      environment_name: production
+      replicas: "1"
+    secrets:
+      KUBE_CONFIG: ${{ secrets.KUBE_CONFIG }}
+
