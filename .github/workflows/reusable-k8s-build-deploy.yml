@@ -37,6 +37,22 @@ on:
         required: false
         type: string
         default: "1"
+      build_args:
+        required: false
+        type: string
+        default: ""
+      enable_probes:
+        required: false
+        type: string
+        default: "true"
+      ingress_annotations:
+        required: false
+        type: string
+        default: ""
+      tls_secret_name:
+        required: false
+        type: string
+        default: ""
     secrets:
       KUBE_CONFIG:
         required: true
@@ -80,6 +96,7 @@ jobs:
           context: ${{ inputs.context }}
           file: ${{ inputs.dockerfile }}
           push: true
+          build-args: ${{ inputs.build_args }}
           tags: |
             ${{ steps.meta.outputs.image }}
             ${{ steps.meta.outputs.branch_image }}
@@ -120,7 +137,10 @@ jobs:
           IMAGE: ${{ needs.build.outputs.image }}
           CONTAINER_PORT: ${{ inputs.container_port }}
           HEALTH_PATH: ${{ inputs.health_path }}
+          ENABLE_PROBES: ${{ inputs.enable_probes }}
           INGRESS_HOSTS: ${{ inputs.ingress_hosts }}
+          INGRESS_ANNOTATIONS: ${{ inputs.ingress_annotations }}
+          TLS_SECRET_NAME: ${{ inputs.tls_secret_name }}
           REPLICAS: ${{ inputs.replicas }}
           INGRESS_CLASS_NAME: ${{ vars.INGRESS_CLASS_NAME || 'public' }}
           TLS_CLUSTER_ISSUER: ${{ vars.TLS_CLUSTER_ISSUER }}

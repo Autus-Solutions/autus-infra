@@ -64,8 +64,37 @@ jobs:
       container_port: 8080
       ingress_hosts: api.autus.solutions
       environment_name: production
+      enable_probes: "true"
     secrets:
       KUBE_CONFIG: ${{ secrets.KUBE_CONFIG }}
+```
+
+Servicos sem endpoint HTTP de saude, como workers, devem usar:
+
+```yaml
+with:
+  enable_probes: "false"
+  ingress_hosts: ""
+```
+
+Aplicacoes com build args Docker podem declarar:
+
+```yaml
+with:
+  build_args: |
+    NEXT_PUBLIC_APP_URL=${{ vars.NEXT_PUBLIC_APP_URL }}
+    NEXT_PUBLIC_API_URL=${{ vars.NEXT_PUBLIC_API_URL }}
+```
+
+Ingresses com issuer ou anotacoes especificas podem passar:
+
+```yaml
+with:
+  tls_secret_name: app-tls
+  ingress_annotations: |
+    cert-manager.io/issuer: app-issuer
+    cert-manager.io/issuer-kind: OriginIssuer
+    cert-manager.io/issuer-group: cert-manager.k8s.cloudflare.com
 ```
 
 ## Secrets e variables esperados

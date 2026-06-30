@@ -37,8 +37,11 @@ def main():
     container_port = required("CONTAINER_PORT")
     ingress_hosts = env("INGRESS_HOSTS")
     health_path = env("HEALTH_PATH", "/health")
+    enable_probes = env("ENABLE_PROBES", "true").lower() in ("1", "true", "yes", "on")
     ingress_class_name = env("INGRESS_CLASS_NAME", "public")
     tls_cluster_issuer = env("TLS_CLUSTER_ISSUER")
+    ingress_annotations = env("INGRESS_ANNOTATIONS")
+    tls_secret_name = env("TLS_SECRET_NAME", f"{app_name}-tls")
     config_map_name = env("CONFIG_MAP_NAME", f"{app_name}-config")
     secret_name = env("SECRET_NAME", f"{app_name}-secrets")
     replicas = env("REPLICAS", "1")
@@ -57,6 +60,7 @@ def main():
         "IMAGE": image,
         "CONTAINER_PORT": container_port,
         "HEALTH_PATH": health_path,
+        "PROBES": build_probes(health_path) if enable_probes else "",
         "CONFIG_MAP_NAME": config_map_name,
         "SECRET_NAME": secret_name,
         "REPLICAS": replicas,
@@ -67,9 +71,11 @@ def main():
         "INGRESS_CLASS_NAME": ingress_class_name,
         "TLS_CLUSTER_ISSUER": tls_cluster_issuer,
         "TLS_ANNOTATION": f"cert-manager.io/cluster-issuer: {tls_cluster_issuer}" if tls_cluster_issuer else "",
+        "INGRESS_ANNOTATIONS": build_annotations(ingress_annotations),
         "FIRST_INGRESS_HOST": ingress_hosts.split(",")[0].strip() if ingress_hosts else "",
         "INGRESS_RULES": build_ingress_rules(ingress_hosts, app_name),
         "TLS_HOSTS": build_tls_hosts(ingress_hosts),
+        "TLS_SECRET_NAME": tls_secret_name,
     }
 
     render("deployment.yaml.tpl", "deployment.yaml", values)
@@ -95,6 +101,36 @@ def build_ingress_rules(hosts, app_name):
                 name: http"""
         )
     return "\n".join(blocks)
+
+
+def build_annotations(annotations):
+    if not annotations:
+        return ""
+    lines = []
+    for item in annotations.splitlines():
+        item = item.strip()
+        if item:
+            lines.append(f"    {item}")
+    return "\n".join(lines)
+
+
+def build_probes(health_path):
+    return f"""          readinessProbe:
+            httpGet:
+              path: {health_path}
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 6
+          livenessProbe:
+            httpGet:
+              path: {health_path}
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 20
+            timeoutSeconds: 3
+            failureThreshold: 3"""
 
 
 def build_tls_hosts(hosts):

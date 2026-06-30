@@ -46,22 +46,7 @@ spec:
             - secretRef:
                 name: ${SECRET_NAME}
                 optional: true
-          readinessProbe:
-            httpGet:
-              path: ${HEALTH_PATH}
-              port: http
-            initialDelaySeconds: 10
-            periodSeconds: 10
-            timeoutSeconds: 3
-            failureThreshold: 6
-          livenessProbe:
-            httpGet:
-              path: ${HEALTH_PATH}
-              port: http
-            initialDelaySeconds: 30
-            periodSeconds: 20
-            timeoutSeconds: 3
-            failureThreshold: 3
+${PROBES}
           resources:
             requests:
               cpu: ${CPU_REQUEST}
@@ -91,4 +76,3 @@ spec:
     - name: http
       port: 80
       targetPort: http
-
