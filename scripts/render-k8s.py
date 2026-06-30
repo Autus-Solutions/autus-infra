@@ -44,6 +44,7 @@ def main():
     tls_secret_name = env("TLS_SECRET_NAME", f"{app_name}-tls")
     config_map_name = env("CONFIG_MAP_NAME", f"{app_name}-config")
     secret_name = env("SECRET_NAME", f"{app_name}-secrets")
+    image_pull_secret_name = env("IMAGE_PULL_SECRET_NAME")
     replicas = env("REPLICAS", "1")
     cpu_request = env("CPU_REQUEST", "100m")
     memory_request = env("MEMORY_REQUEST", "128Mi")
@@ -63,6 +64,7 @@ def main():
         "PROBES": build_probes(health_path) if enable_probes else "",
         "CONFIG_MAP_NAME": config_map_name,
         "SECRET_NAME": secret_name,
+        "IMAGE_PULL_SECRETS": build_image_pull_secrets(image_pull_secret_name),
         "REPLICAS": replicas,
         "CPU_REQUEST": cpu_request,
         "MEMORY_REQUEST": memory_request,
@@ -112,6 +114,13 @@ def build_annotations(annotations):
         if item:
             lines.append(f"    {item}")
     return "\n".join(lines)
+
+
+def build_image_pull_secrets(secret_name):
+    if not secret_name:
+        return ""
+    return f"""      imagePullSecrets:
+        - name: {secret_name}"""
 
 
 def build_probes(health_path):

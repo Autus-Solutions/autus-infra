@@ -53,6 +53,10 @@ on:
         required: false
         type: string
         default: ""
+      image_pull_secret_name:
+        required: false
+        type: string
+        default: ""
     secrets:
       KUBE_CONFIG:
         required: true
@@ -141,6 +145,7 @@ jobs:
           INGRESS_HOSTS: ${{ inputs.ingress_hosts }}
           INGRESS_ANNOTATIONS: ${{ inputs.ingress_annotations }}
           TLS_SECRET_NAME: ${{ inputs.tls_secret_name }}
+          IMAGE_PULL_SECRET_NAME: ${{ inputs.image_pull_secret_name }}
           REPLICAS: ${{ inputs.replicas }}
           INGRESS_CLASS_NAME: ${{ vars.INGRESS_CLASS_NAME || 'public' }}
           TLS_CLUSTER_ISSUER: ${{ vars.TLS_CLUSTER_ISSUER }}

@@ -32,6 +32,7 @@ spec:
         fsGroup: 1000
         seccompProfile:
           type: RuntimeDefault
+${IMAGE_PULL_SECRETS}
       containers:
         - name: ${APP_NAME}
           image: ${IMAGE}

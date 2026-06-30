@@ -86,6 +86,13 @@ with:
     NEXT_PUBLIC_API_URL=${{ vars.NEXT_PUBLIC_API_URL }}
 ```
 
+Namespaces que puxam imagens GHCR privadas devem receber um pull secret e declarar:
+
+```yaml
+with:
+  image_pull_secret_name: ghcr-pull-secret
+```
+
 Ingresses com issuer ou anotacoes especificas podem passar:
 
 ```yaml
