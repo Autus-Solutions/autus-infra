@@ -29,10 +29,6 @@ on:
         required: false
         type: string
         default: ""
-      environment_name:
-        required: false
-        type: string
-        default: staging
       replicas:
         required: false
         type: string
@@ -117,7 +113,6 @@ jobs:
     name: Deploy to Kubernetes
     needs: build
     runs-on: ubuntu-latest
-    environment: ${{ inputs.environment_name }}
     concurrency:
       group: deploy-${{ inputs.namespace }}-${{ inputs.app_name }}
       cancel-in-progress: false

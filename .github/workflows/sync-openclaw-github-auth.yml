@@ -1,0 +1,52 @@
+name: Sync OpenClaw GitHub Auth
+
+on:
+  workflow_dispatch:
+    inputs:
+      namespace:
+        description: Kubernetes namespace that runs OpenClaw.
+        required: false
+        type: string
+        default: openclaw
+      deployment:
+        description: Kubernetes deployment that runs OpenClaw.
+        required: false
+        type: string
+        default: openclaw
+      secret_name:
+        description: Kubernetes secret name for GitHub CLI auth.
+        required: false
+        type: string
+        default: github-cli-auth
+
+permissions:
+  contents: read
+
+jobs:
+  sync:
+    name: Sync OpenClaw GitHub Auth
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Autus infra
+        uses: actions/checkout@v4
+
+      - name: Install kubectl
+        uses: azure/setup-kubectl@v4
+
+      - name: Configure kubeconfig
+        shell: bash
+        run: |
+          mkdir -p "$HOME/.kube"
+          printf '%s' '${{ secrets.KUBE_CONFIG }}' > "$HOME/.kube/config"
+          chmod 600 "$HOME/.kube/config"
+          if [ -n "${{ vars.KUBE_CONTEXT }}" ]; then
+            kubectl config use-context "${{ vars.KUBE_CONTEXT }}"
+          fi
+
+      - name: Sync GitHub CLI auth into OpenClaw
+        env:
+          GH_TOKEN: ${{ secrets.AUTUS_ATOMUS_GH_TOKEN }}
+          NAMESPACE: ${{ inputs.namespace }}
+          DEPLOYMENT: ${{ inputs.deployment }}
+          SECRET_NAME: ${{ inputs.secret_name }}
+        run: ./scripts/bootstrap-openclaw-gh-auth.sh
