@@ -35,12 +35,31 @@ jobs:
 
       - name: Configure kubeconfig
         shell: bash
+        env:
+          KUBE_CONFIG: ${{ secrets.KUBE_CONFIG }}
+          KUBE_CONTEXT: ${{ vars.KUBE_CONTEXT }}
         run: |
           mkdir -p "$HOME/.kube"
-          printf '%s' '${{ secrets.KUBE_CONFIG }}' > "$HOME/.kube/config"
+          if [ -z "$KUBE_CONFIG" ]; then
+            echo "KUBE_CONFIG repository secret is empty or unavailable." >&2
+            exit 1
+          fi
+
+          if printf '%s' "$KUBE_CONFIG" | grep -q '\\n'; then
+            printf '%b' "$KUBE_CONFIG" > "$HOME/.kube/config"
+          elif printf '%s' "$KUBE_CONFIG" | grep -q 'apiVersion:'; then
+            printf '%s\n' "$KUBE_CONFIG" > "$HOME/.kube/config"
+          elif printf '%s' "$KUBE_CONFIG" | base64 -d > "$HOME/.kube/config.decoded" 2>/dev/null \
+            && grep -q 'apiVersion:' "$HOME/.kube/config.decoded"; then
+            mv "$HOME/.kube/config.decoded" "$HOME/.kube/config"
+          else
+            printf '%s\n' "$KUBE_CONFIG" > "$HOME/.kube/config"
+          fi
+          rm -f "$HOME/.kube/config.decoded"
           chmod 600 "$HOME/.kube/config"
-          if [ -n "${{ vars.KUBE_CONTEXT }}" ]; then
-            kubectl config use-context "${{ vars.KUBE_CONTEXT }}"
+          kubectl config view --minify >/dev/null
+          if [ -n "$KUBE_CONTEXT" ]; then
+            kubectl config use-context "$KUBE_CONTEXT"
           fi
 
       - name: Sync GitHub CLI auth into OpenClaw
