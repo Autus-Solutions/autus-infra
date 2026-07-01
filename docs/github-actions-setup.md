@@ -50,10 +50,10 @@ Preferencialmente, gere um kubeconfig limitado ao namespace:
 
 ```bash
 alias kubectl='microk8s kubectl'
-./scripts/create-github-actions-kubeconfig.sh autus-prod > /tmp/autus-prod-kubeconfig.yaml
+./scripts/create-github-actions-kubeconfig.sh autus > /tmp/autus-kubeconfig.yaml
 ```
 
-Use o conteudo de `/tmp/autus-prod-kubeconfig.yaml` como `KUBE_CONFIG`.
+Use o conteudo de `/tmp/autus-kubeconfig.yaml` como `KUBE_CONFIG`.
 
 Importante: `KUBE_CONFIG` tambem deve ser recuperavel de uma fonte externa ao cluster. O GitHub Secret e uma copia operacional para o CI; mantenha o kubeconfig bootstrap, tokens e credenciais de operador em 1Password ou outro vault. Para acesso SSH persistente do runtime ao GitHub, veja `docs/persistent-github-access.md`.
 
@@ -84,10 +84,10 @@ TLS_CLUSTER_ISSUER=letsencrypt-prod
 Exemplo para uma API:
 
 ```bash
-microk8s kubectl create namespace autus-prod --dry-run=client -o yaml | microk8s kubectl apply -f -
+microk8s kubectl create namespace autus --dry-run=client -o yaml | microk8s kubectl apply -f -
 
 microk8s kubectl create secret generic autus-api-secrets \
-  -n autus-prod \
+  -n autus \
   --from-literal=ConnectionStrings__Database='trocar' \
   --from-literal=ASPNETCORE_ENVIRONMENT='Production' \
   --dry-run=client -o yaml | microk8s kubectl apply -f -
@@ -97,7 +97,7 @@ ConfigMap opcional:
 
 ```bash
 microk8s kubectl create configmap autus-api-config \
-  -n autus-prod \
+  -n autus \
   --from-literal=ASPNETCORE_URLS='http://+:8080' \
   --dry-run=client -o yaml | microk8s kubectl apply -f -
 ```
@@ -123,7 +123,7 @@ Depois ajuste:
 ## 6. Validar deploy
 
 ```bash
-microk8s kubectl get deploy,pod,svc,ingress -n autus-prod
-microk8s kubectl rollout status deployment/autus-api -n autus-prod
-microk8s kubectl logs -n autus-prod deploy/autus-api --tail=200
+microk8s kubectl get deploy,pod,svc,ingress -n autus
+microk8s kubectl rollout status deployment/autus-api -n autus
+microk8s kubectl logs -n autus deploy/autus-api --tail=200
 ```

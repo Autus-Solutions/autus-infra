@@ -10,7 +10,7 @@ jobs:
     uses: Autus-Solutions/autus-infra/.github/workflows/reusable-k8s-build-deploy.yml@main
     with:
       app_name: autus-web
-      namespace: autus-prod
+      namespace: autus
       dockerfile: ./Dockerfile
       context: .
       container_port: "3000"

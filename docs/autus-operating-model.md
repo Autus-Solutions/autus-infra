@@ -42,7 +42,9 @@ credencial, manifest, imagem ou backup critico dentro do Kubernetes.
 O cluster MicroK8s da Autus executa os workloads.
 
 - Add-ons MicroK8s: `dns`, `storage`, `ingress` e opcionalmente `cert-manager`
-- Namespaces como `openclaw`, `ebl` e `autus-prod`
+- Namespace oficial da plataforma: `autus`
+- Namespaces de produto ou cliente, como `ebl`, quando isolamento operacional
+  for necessario
 - Kubernetes Secrets como copias runtime
 - PVCs para workloads stateful
 - Ingress, services, deployments e configmaps
@@ -71,6 +73,22 @@ Exemplos:
 - APIs, automacoes, workers e servicos MCP de clientes
 
 Esses workloads consomem o modelo compartilhado de deploy do `autus-infra`.
+
+## Politica De Namespace
+
+O namespace oficial da plataforma Autus e:
+
+```text
+autus
+```
+
+Use `autus` para workloads centrais da Autus, incluindo runtime operacional,
+servicos internos e deploys oficiais da plataforma.
+
+Use namespaces especificos, como `ebl`, apenas quando houver necessidade clara
+de isolamento por produto, cliente, ciclo de migracao ou requisitos operacionais.
+Quando isso acontecer, o `KUBE_CONFIG`, `ghcr-pull-secret` e app secrets devem
+existir no namespace especifico do workload.
 
 ## Propriedades De Recuperacao
 
@@ -120,10 +138,11 @@ deve continuar tendo instrucoes e credenciais para traze-lo de volta.
 
 ## Checklist Prioritaria Atual
 
-- [ ] Armazenar um `KUBE_CONFIG` namespace-scoped no GitHub Environment
-      `production` de `Autus-Solutions/autus-infra`.
-- [ ] Sincronizar `ghcr-pull-secret` no namespace `ebl` pelo workflow
+- [ ] Armazenar um `KUBE_CONFIG` namespace-scoped para `autus` no GitHub
+      Environment `production` de `Autus-Solutions/autus-infra`.
+- [ ] Sincronizar `ghcr-pull-secret` no namespace `autus` pelo workflow
       reutilizavel de GHCR pull secret.
+- [ ] Decidir se Eclética continua isolada em `ebl` ou migra para `autus`.
 - [ ] Confirmar que os app secrets da Eclética existem no namespace `ebl`.
 - [ ] Fazer merge das branches de migracao da Eclética depois que pull secret e
       app secrets existirem.

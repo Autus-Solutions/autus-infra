@@ -28,19 +28,20 @@ Use `kubectl` apontando para o cluster:
 alias kubectl='microk8s kubectl'
 ```
 
-Gere o kubeconfig:
+Gere o kubeconfig para o namespace oficial da plataforma Autus:
 
 ```bash
-./scripts/create-github-actions-kubeconfig.sh autus-prod > /tmp/autus-prod-kubeconfig.yaml
+./scripts/create-github-actions-kubeconfig.sh autus > /tmp/autus-kubeconfig.yaml
 ```
 
-Para Eclética Beer Lab:
+Para Eclética Beer Lab, apenas se o produto continuar isolado no namespace
+`ebl`:
 
 ```bash
 ./scripts/create-github-actions-kubeconfig.sh ebl > /tmp/ebl-kubeconfig.yaml
 ```
 
-O conteudo de `/tmp/autus-prod-kubeconfig.yaml` deve ser cadastrado no GitHub Secret:
+O conteudo de `/tmp/autus-kubeconfig.yaml` deve ser cadastrado no GitHub Secret:
 
 ```text
 KUBE_CONFIG
@@ -87,15 +88,15 @@ Nao ha permissao para deletar recursos.
 ## 4. Validacao
 
 ```bash
-KUBECONFIG=/tmp/autus-prod-kubeconfig.yaml kubectl get deploy,svc,ingress -n autus-prod
+KUBECONFIG=/tmp/autus-kubeconfig.yaml kubectl get deploy,svc,ingress -n autus
 ```
 
 ## 5. Rotacao
 
-Para rotacionar o acesso:
+Para rotacionar o acesso da plataforma Autus:
 
 ```bash
-./scripts/create-github-actions-kubeconfig.sh autus-prod > /tmp/autus-prod-kubeconfig-rotated.yaml
+./scripts/create-github-actions-kubeconfig.sh autus > /tmp/autus-kubeconfig-rotated.yaml
 ```
 
 Depois atualize o secret `KUBE_CONFIG` no GitHub.

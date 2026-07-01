@@ -56,10 +56,14 @@ Important: GitHub organization secrets are only available to repositories in tha
 Run the workflow `Reusable GHCR Pull Secret Sync` from `Autus-Solutions/autus-infra` with:
 
 ```text
-namespace: ebl
+namespace: autus
 secret_name: ghcr-pull-secret
 environment_name: production
 ```
+
+Use `namespace: ebl` only if Eclética Beer Lab remains isolated in its current
+product namespace during migration. The official Autus platform namespace is
+`autus`.
 
 That workflow reads:
 
@@ -86,7 +90,7 @@ Manual execution is a fallback. Prefer the workflow so namespace bootstrap is re
 
 ## Merge migration branches
 
-After `ghcr-pull-secret` and app secrets exist in namespace `ebl`, merge:
+After `ghcr-pull-secret` and app secrets exist in the target namespace, merge:
 
 ```text
 ecleticabeerlab/ecletica-beer-control-api:infra/autus-reusable-actions

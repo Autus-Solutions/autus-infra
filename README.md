@@ -20,6 +20,7 @@ Este repositorio generaliza a infraestrutura observada nos projetos da Eclética
 - Rollout validado antes de concluir o pipeline.
 - OpenClaw/Atomus como operador interno recuperavel, nao como raiz de confianca da infraestrutura.
 - Fontes de verdade externas ao cluster para GitHub, vault, manifests, imagens e credenciais de recuperacao.
+- Namespace padrao da plataforma Autus: `autus`.
 
 ## Estrutura
 
@@ -54,6 +55,15 @@ deve continuar recuperavel sem depender de um pod OpenClaw ativo.
 Leia `docs/autus-operating-model.md` antes de alterar bootstrap, secrets,
 workflows, backups ou credenciais de operador.
 
+Namespace oficial da plataforma Autus:
+
+```text
+autus
+```
+
+Namespaces de produto ou cliente, como `ebl`, podem existir para isolamento
+operacional, mas nao devem ser tratados como padrao da plataforma.
+
 ## Como usar em um repo de produto
 
 Crie um workflow no repositório da aplicação chamando o workflow reutilizável:
@@ -71,7 +81,7 @@ jobs:
     uses: Autus-Solutions/autus-infra/.github/workflows/reusable-k8s-build-deploy.yml@main
     with:
       app_name: autus-api
-      namespace: autus-prod
+      namespace: autus
       dockerfile: ./Dockerfile
       context: .
       container_port: 8080
@@ -133,7 +143,7 @@ Essas secrets devem ser disponibilizadas para o repositorio `Autus-Solutions/aut
 Para gerar um kubeconfig namespace-scoped no MicroK8s, use:
 
 ```bash
-./scripts/create-github-actions-kubeconfig.sh autus-prod > /tmp/autus-prod-kubeconfig.yaml
+./scripts/create-github-actions-kubeconfig.sh autus > /tmp/autus-kubeconfig.yaml
 ```
 
 Kubernetes Secrets por app:
@@ -155,7 +165,7 @@ GitHub Variables opcionais:
 
 ## Sincronizar GHCR pull secret
 
-Para criar ou atualizar o `ghcr-pull-secret` no cluster, execute o workflow `Reusable GHCR Pull Secret Sync` em `Autus-Solutions/autus-infra` informando o namespace, por exemplo `ebl`.
+Para criar ou atualizar o `ghcr-pull-secret` no cluster, execute o workflow `Reusable GHCR Pull Secret Sync` em `Autus-Solutions/autus-infra` informando o namespace. Para workloads oficiais da Autus, use `autus`.
 
 O mesmo processo pode ser chamado por outro workflow:
 
@@ -164,7 +174,7 @@ jobs:
   sync-ghcr-pull-secret:
     uses: Autus-Solutions/autus-infra/.github/workflows/reusable-ghcr-pull-secret.yml@main
     with:
-      namespace: ebl
+      namespace: autus
       secret_name: ghcr-pull-secret
       environment_name: production
     secrets:
@@ -188,7 +198,7 @@ secrets:
 
 ```bash
 APP_NAME=autus-api \
-NAMESPACE=autus-prod \
+NAMESPACE=autus \
 IMAGE=ghcr.io/autus-solutions/autus-api:local \
 CONTAINER_PORT=8080 \
 INGRESS_HOSTS=api.autus.solutions \
