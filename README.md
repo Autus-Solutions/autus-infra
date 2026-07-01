@@ -24,6 +24,7 @@ Este repositorio generaliza a infraestrutura observada nos projetos da Eclética
 ```text
 .github/workflows/
   reusable-k8s-build-deploy.yml
+  reusable-ghcr-pull-secret.yml
 k8s/templates/
   deployment.yaml.tpl
   ingress.yaml.tpl
@@ -107,9 +108,16 @@ with:
 
 ## Secrets e variables esperados
 
-GitHub Secrets:
+GitHub Secrets de ambiente ou repositorio:
 
 - `KUBE_CONFIG`: kubeconfig com acesso ao namespace alvo.
+
+GitHub Secrets organizacionais em `Autus-Solutions`:
+
+- `AUTUS_GHCR_PULL_USERNAME`: usuario ou machine user com acesso de leitura aos packages GHCR.
+- `AUTUS_GHCR_PULL_TOKEN`: token com `read:packages` para gerar o pull secret do cluster.
+
+Essas secrets devem ser disponibilizadas para o repositorio `Autus-Solutions/autus-infra` e, quando o deploy rodar diretamente em repos da organizacao Autus, para os repos consumidores que chamarem o workflow reutilizavel. Repos fora da organizacao, como repos ainda mantidos em `ecleticabeerlab`, nao recebem secrets organizacionais da Autus automaticamente; nesse caso, sincronize o pull secret pelo workflow deste repositorio de infra ou replique a secret na organizacao/repo dono do workflow.
 
 Para gerar um kubeconfig namespace-scoped no MicroK8s, use:
 
@@ -120,6 +128,7 @@ Para gerar um kubeconfig namespace-scoped no MicroK8s, use:
 Kubernetes Secrets por app:
 
 - `<app_name>-secrets`: secrets da aplicacao, criado fora do CI.
+- `ghcr-pull-secret`: pull secret gerado automaticamente a partir das secrets organizacionais do GHCR.
 
 Credenciais de operador/runtime:
 
@@ -132,6 +141,37 @@ GitHub Variables opcionais:
 - `KUBE_CONTEXT`: contexto Kubernetes, se o kubeconfig possuir mais de um.
 - `INGRESS_CLASS_NAME`: padrao `public`.
 - `TLS_CLUSTER_ISSUER`: padrao vazio. Use quando houver cert-manager com ClusterIssuer.
+
+## Sincronizar GHCR pull secret
+
+Para criar ou atualizar o `ghcr-pull-secret` no cluster, execute o workflow `Reusable GHCR Pull Secret Sync` em `Autus-Solutions/autus-infra` informando o namespace, por exemplo `ebl`.
+
+O mesmo processo pode ser chamado por outro workflow:
+
+```yaml
+jobs:
+  sync-ghcr-pull-secret:
+    uses: Autus-Solutions/autus-infra/.github/workflows/reusable-ghcr-pull-secret.yml@main
+    with:
+      namespace: ebl
+      secret_name: ghcr-pull-secret
+      environment_name: production
+    secrets:
+      KUBE_CONFIG: ${{ secrets.KUBE_CONFIG }}
+      AUTUS_GHCR_PULL_USERNAME: ${{ secrets.AUTUS_GHCR_PULL_USERNAME }}
+      AUTUS_GHCR_PULL_TOKEN: ${{ secrets.AUTUS_GHCR_PULL_TOKEN }}
+```
+
+Deploys tambem podem garantir o pull secret automaticamente:
+
+```yaml
+with:
+  image_pull_secret_name: ghcr-pull-secret
+  ensure_image_pull_secret: "true"
+secrets:
+  AUTUS_GHCR_PULL_USERNAME: ${{ secrets.AUTUS_GHCR_PULL_USERNAME }}
+  AUTUS_GHCR_PULL_TOKEN: ${{ secrets.AUTUS_GHCR_PULL_TOKEN }}
+```
 
 ## Comando local para testar renderizacao
 

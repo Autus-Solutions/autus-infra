@@ -57,9 +57,17 @@ on:
         required: false
         type: string
         default: ""
+      ensure_image_pull_secret:
+        required: false
+        type: string
+        default: "false"
     secrets:
       KUBE_CONFIG:
         required: true
+      AUTUS_GHCR_PULL_USERNAME:
+        required: false
+      AUTUS_GHCR_PULL_TOKEN:
+        required: false
 
 permissions:
   contents: read
@@ -132,6 +140,20 @@ jobs:
           if [ -n "${{ vars.KUBE_CONTEXT }}" ]; then
             kubectl config use-context "${{ vars.KUBE_CONTEXT }}"
           fi
+
+      - name: Ensure GHCR pull secret
+        if: ${{ inputs.ensure_image_pull_secret == 'true' }}
+        working-directory: .autus-infra
+        env:
+          AUTUS_GHCR_PULL_USERNAME: ${{ secrets.AUTUS_GHCR_PULL_USERNAME }}
+          AUTUS_GHCR_PULL_TOKEN: ${{ secrets.AUTUS_GHCR_PULL_TOKEN }}
+        shell: bash
+        run: |
+          if [ -z "${{ inputs.image_pull_secret_name }}" ]; then
+            echo "image_pull_secret_name is required when ensure_image_pull_secret is true." >&2
+            exit 2
+          fi
+          ./scripts/create-ghcr-pull-secret.sh "${{ inputs.namespace }}" "${{ inputs.image_pull_secret_name }}"
 
       - name: Render manifests
         working-directory: .autus-infra
