@@ -18,6 +18,8 @@ Este repositorio generaliza a infraestrutura observada nos projetos da Eclética
 - Configuracao por ambiente: GitHub Environments, repository variables e Kubernetes Secrets.
 - Manifests renderizados no CI a partir de templates versionados.
 - Rollout validado antes de concluir o pipeline.
+- OpenClaw/Atomus como operador interno recuperavel, nao como raiz de confianca da infraestrutura.
+- Fontes de verdade externas ao cluster para GitHub, vault, manifests, imagens e credenciais de recuperacao.
 
 ## Estrutura
 
@@ -37,11 +39,20 @@ examples/
   service-worker.yml
   service-mcp.yml
 docs/
+  autus-operating-model.md
   cluster-bootstrap-microk8s.md
   migrate-microk8s-registry-to-ghcr.md
   persistent-github-access.md
   migration-from-ecletica.md
 ```
+
+## Modelo operacional Autus
+
+OpenClaw/Atomus pode rodar dentro do MicroK8s da Autus, mas a infraestrutura
+deve continuar recuperavel sem depender de um pod OpenClaw ativo.
+
+Leia `docs/autus-operating-model.md` antes de alterar bootstrap, secrets,
+workflows, backups ou credenciais de operador.
 
 ## Como usar em um repo de produto
 

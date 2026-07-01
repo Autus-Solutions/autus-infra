@@ -1,5 +1,9 @@
 # GitHub Actions Setup
 
+Este setup implementa o caminho de controle externo recomendado para a Autus:
+GitHub Actions deve conseguir aplicar deploys no MicroK8s mesmo se
+OpenClaw/Atomus estiver temporariamente offline.
+
 ## 1. Criar o repositorio
 
 Repositorio recomendado:
@@ -59,6 +63,12 @@ Environment recomendado:
 
 ```text
 production
+```
+
+Secret obrigatorio no Environment `production` para deploys:
+
+```text
+KUBE_CONFIG
 ```
 
 Variables opcionais:
