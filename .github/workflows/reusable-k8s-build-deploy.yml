@@ -1,4 +1,4 @@
-name: Reusable Kubernetes Build and Deploy
+name: Reusable K8s Build and Deploy
 
 on:
   workflow_call:
@@ -9,195 +9,126 @@ on:
       namespace:
         required: true
         type: string
+      image_pull_secret_name:
+        required: true
+        type: string
       dockerfile:
         required: false
         type: string
-        default: ./Dockerfile
-      context:
+        default: Dockerfile
+      deploy_worker:
         required: false
-        type: string
-        default: .
-      container_port:
+        type: boolean
+        default: false
+      deploy_mcp:
         required: false
-        type: string
-        default: "8080"
-      health_path:
-        required: false
-        type: string
-        default: /health
-      ingress_hosts:
-        required: false
-        type: string
-        default: ""
-      replicas:
-        required: false
-        type: string
-        default: "1"
-      build_args:
-        required: false
-        type: string
-        default: ""
-      enable_probes:
-        required: false
-        type: string
-        default: "true"
-      ingress_annotations:
-        required: false
-        type: string
-        default: ""
-      tls_secret_name:
-        required: false
-        type: string
-        default: ""
-      image_pull_secret_name:
-        required: false
-        type: string
-        default: ""
-      ensure_image_pull_secret:
-        required: false
-        type: string
-        default: "false"
-    secrets:
-      KUBE_CONFIG:
-        required: true
-      KUBE_CONTEXT:
-        required: false
-      AUTUS_GHCR_PULL_USERNAME:
-        required: false
-      AUTUS_GHCR_PULL_TOKEN:
-        required: false
+        type: boolean
+        default: false
 
-permissions:
-  contents: read
-  packages: write
+env:
+  IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/${{ inputs.app_name }}
 
 jobs:
-  build:
-    name: Build and Push Image
+  build-and-push:
     runs-on: ubuntu-latest
-    outputs:
-      image: ${{ steps.meta.outputs.image }}
-      branch_image: ${{ steps.meta.outputs.branch_image }}
+    permissions:
+      contents: read
+      packages: write
+
     steps:
-      - name: Checkout application
+      - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Login to GHCR
+      - name: Install pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 9
+          run_install: false
+
+      - name: Log in to the Container registry
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
-          password: ${{ github.token }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Define image
+      - name: Extract metadata (tags, labels) for Docker
         id: meta
-        shell: bash
-        run: |
-          owner="$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')"
-          sha_tag="${GITHUB_SHA::12}"
-          ref_tag="$(echo '${{ github.ref_name }}' | sed -E 's/[^A-Za-z0-9_.-]+/-/g; s/^-+//; s/-+$//')"
-          ref_tag="${ref_tag:-branch}"
-          image="ghcr.io/${owner}/${{ inputs.app_name }}:${sha_tag}"
-          branch_image="ghcr.io/${owner}/${{ inputs.app_name }}:${ref_tag}"
-          echo "image=${image}" >> "$GITHUB_OUTPUT"
-          echo "branch_image=${branch_image}" >> "$GITHUB_OUTPUT"
-
-      - name: Build and push
-        uses: docker/build-push-action@v6
+        uses: docker/metadata-action@v5
         with:
-          context: ${{ inputs.context }}
+          images: ${{ env.IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=sha,format=long
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
           file: ${{ inputs.dockerfile }}
           push: true
-          build-args: ${{ inputs.build_args }}
-          tags: |
-            ${{ steps.meta.outputs.image }}
-            ${{ steps.meta.outputs.branch_image }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            NODE_ENV=production
 
   deploy:
-    name: Deploy to Kubernetes
-    needs: build
+    needs: build-and-push
     runs-on: ubuntu-latest
-    concurrency:
-      group: deploy-${{ inputs.namespace }}-${{ inputs.app_name }}
-      cancel-in-progress: false
+    permissions:
+      contents: read
+      packages: read
+
     steps:
-      - name: Checkout Autus infra
+      - name: Checkout target repository
+        uses: actions/checkout@v4
+
+      - name: Checkout Autus Infra for deploy scripts
         uses: actions/checkout@v4
         with:
           repository: Autus-Solutions/autus-infra
-          path: .autus-infra
+          path: autus-infra
+          token: ${{ secrets.AUTUS_ATOMUS_GH_TOKEN || secrets.GITHUB_TOKEN }}
 
-      - name: Install kubectl
-        uses: azure/setup-kubectl@v4
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v3
 
-      - name: Configure kubeconfig
-        shell: bash
-        env:
-          KUBE_CONFIG: ${{ secrets.KUBE_CONFIG }}
-          KUBE_CONTEXT: ${{ secrets.KUBE_CONTEXT || vars.KUBE_CONTEXT }}
+      - name: Configure kubectl
         run: |
-          mkdir -p "$HOME/.kube"
-          if [ -z "$KUBE_CONFIG" ]; then
-            echo "KUBE_CONFIG repository secret is empty or unavailable." >&2
-            exit 1
+          mkdir -p ~/.kube
+          echo "${{ secrets.KUBE_CONFIG }}" | base64 -d > ~/.kube/config || \
+          echo "${{ secrets.KUBE_CONFIG }}" > ~/.kube/config
+          chmod 600 ~/.kube/config
+          if [ -n "${{ secrets.KUBE_CONTEXT }}" ]; then
+            kubectl config use-context "${{ secrets.KUBE_CONTEXT }}"
           fi
 
-          if printf '%s' "$KUBE_CONFIG" | grep -q '\\n'; then
-            printf '%b' "$KUBE_CONFIG" > "$HOME/.kube/config"
-          elif printf '%s' "$KUBE_CONFIG" | grep -q 'apiVersion:'; then
-            printf '%s\n' "$KUBE_CONFIG" > "$HOME/.kube/config"
-          elif printf '%s' "$KUBE_CONFIG" | base64 -d > "$HOME/.kube/config.decoded" 2>/dev/null \
-            && grep -q 'apiVersion:' "$HOME/.kube/config.decoded"; then
-            mv "$HOME/.kube/config.decoded" "$HOME/.kube/config"
-          else
-            printf '%s\n' "$KUBE_CONFIG" > "$HOME/.kube/config"
-          fi
-          rm -f "$HOME/.kube/config.decoded"
-          chmod 600 "$HOME/.kube/config"
-          kubectl config view --minify >/dev/null
-          if [ -n "$KUBE_CONTEXT" ]; then
-            kubectl config use-context "$KUBE_CONTEXT"
-          fi
+      - name: Validate Kubernetes connection
+        run: kubectl cluster-info
 
-      - name: Ensure GHCR pull secret
-        if: ${{ inputs.ensure_image_pull_secret == 'true' }}
-        working-directory: .autus-infra
-        env:
-          AUTUS_GHCR_PULL_USERNAME: ${{ secrets.AUTUS_GHCR_PULL_USERNAME }}
-          AUTUS_GHCR_PULL_TOKEN: ${{ secrets.AUTUS_GHCR_PULL_TOKEN }}
-        shell: bash
+      - name: Prepare Kubernetes Manifests
         run: |
-          if [ -z "${{ inputs.image_pull_secret_name }}" ]; then
-            echo "image_pull_secret_name is required when ensure_image_pull_secret is true." >&2
-            exit 2
-          fi
-          ./scripts/create-ghcr-pull-secret.sh "${{ inputs.namespace }}" "${{ inputs.image_pull_secret_name }}"
+          export IMAGE_TAG="sha-${GITHUB_SHA}"
+          export FULL_IMAGE="${{ env.IMAGE_NAME }}:${IMAGE_TAG}"
+          
+          for file in autus-infra/kubernetes/templates/*.yaml; do
+            APP_NAME="${{ inputs.app_name }}" NAMESPACE="${{ inputs.namespace }}" \
+            IMAGE="$FULL_IMAGE" IMAGE_PULL_SECRET="${{ inputs.image_pull_secret_name }}" \
+            envsubst '$APP_NAME $NAMESPACE $IMAGE $IMAGE_PULL_SECRET' < "$file" > "deploy_$(basename $file)"
+          done
 
-      - name: Render manifests
-        working-directory: .autus-infra
-        env:
-          APP_NAME: ${{ inputs.app_name }}
-          NAMESPACE: ${{ inputs.namespace }}
-          IMAGE: ${{ needs.build.outputs.image }}
-          CONTAINER_PORT: ${{ inputs.container_port }}
-          HEALTH_PATH: ${{ inputs.health_path }}
-          ENABLE_PROBES: ${{ inputs.enable_probes }}
-          INGRESS_HOSTS: ${{ inputs.ingress_hosts }}
-          INGRESS_ANNOTATIONS: ${{ inputs.ingress_annotations }}
-          TLS_SECRET_NAME: ${{ inputs.tls_secret_name }}
-          IMAGE_PULL_SECRET_NAME: ${{ inputs.image_pull_secret_name }}
-          REPLICAS: ${{ inputs.replicas }}
-          INGRESS_CLASS_NAME: ${{ vars.INGRESS_CLASS_NAME || 'public' }}
-          TLS_CLUSTER_ISSUER: ${{ vars.TLS_CLUSTER_ISSUER }}
-        run: python3 scripts/render-k8s.py
-
-      - name: Apply manifests
-        working-directory: .autus-infra
+      - name: Apply Kubernetes Manifests
         run: |
-          kubectl apply -f rendered/deployment.yaml
-          if [ -f rendered/ingress.yaml ]; then
-            kubectl apply -f rendered/ingress.yaml
+          kubectl apply -f deploy_deployment.yaml -n ${{ inputs.namespace }}
+          
+          if [ -f deploy_service.yaml ]; then
+            kubectl apply -f deploy_service.yaml -n ${{ inputs.namespace }}
+          fi
+          
+          if [ -f autus-infra/kubernetes/overlays/${{ inputs.namespace }}/ingress-${{ inputs.app_name }}.yaml ]; then
+             kubectl apply -f autus-infra/kubernetes/overlays/${{ inputs.namespace }}/ingress-${{ inputs.app_name }}.yaml -n ${{ inputs.namespace }}
           fi
 
-      - name: Validate rollout
-        run: kubectl rollout status deployment/${{ inputs.app_name }} -n ${{ inputs.namespace }} --timeout=180s
+      - name: Wait for Rollout
+        run: |
+          kubectl rollout status deployment/${{ inputs.app_name }} -n ${{ inputs.namespace }} --timeout=120s
