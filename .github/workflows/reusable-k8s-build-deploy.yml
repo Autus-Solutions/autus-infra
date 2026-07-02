@@ -93,8 +93,10 @@ jobs:
         run: |
           owner="$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')"
           sha_tag="${GITHUB_SHA::12}"
+          ref_tag="$(echo '${{ github.ref_name }}' | sed -E 's/[^A-Za-z0-9_.-]+/-/g; s/^-+//; s/-+$//')"
+          ref_tag="${ref_tag:-branch}"
           image="ghcr.io/${owner}/${{ inputs.app_name }}:${sha_tag}"
-          branch_image="ghcr.io/${owner}/${{ inputs.app_name }}:${{ github.ref_name }}"
+          branch_image="ghcr.io/${owner}/${{ inputs.app_name }}:${ref_tag}"
           echo "image=${image}" >> "$GITHUB_OUTPUT"
           echo "branch_image=${branch_image}" >> "$GITHUB_OUTPUT"
 
