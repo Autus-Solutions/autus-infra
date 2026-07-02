@@ -12,6 +12,10 @@ on:
       image_pull_secret_name:
         required: true
         type: string
+      secret_name:
+        required: false
+        type: string
+        default: ""
       dockerfile:
         required: false
         type: string
@@ -102,11 +106,16 @@ jobs:
         run: |
           export IMAGE_TAG="sha-${GITHUB_SHA}"
           export FULL_IMAGE="${{ env.IMAGE_NAME }}:${IMAGE_TAG}"
+          export K8S_SECRET_NAME="${{ inputs.secret_name }}"
+          if [ -z "$K8S_SECRET_NAME" ]; then
+            K8S_SECRET_NAME="${{ inputs.app_name }}-secrets"
+          fi
           
           for file in autus-infra/kubernetes/templates/*.yaml; do
             APP_NAME="${{ inputs.app_name }}" NAMESPACE="${{ inputs.namespace }}" \
             IMAGE="$FULL_IMAGE" IMAGE_PULL_SECRET="${{ inputs.image_pull_secret_name }}" \
-            envsubst '$APP_NAME $NAMESPACE $IMAGE $IMAGE_PULL_SECRET' < "$file" > "deploy_$(basename $file)"
+            SECRET_NAME="$K8S_SECRET_NAME" \
+            envsubst '$APP_NAME $NAMESPACE $IMAGE $IMAGE_PULL_SECRET $SECRET_NAME' < "$file" > "deploy_$(basename $file)"
           done
 
       - name: Apply Kubernetes Manifests

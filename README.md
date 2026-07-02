@@ -88,6 +88,7 @@ jobs:
       ingress_hosts: api.autus.solutions
       environment_name: production
       enable_probes: "true"
+      secret_name: autus-api-secrets
     secrets:
       KUBE_CONFIG: ${{ secrets.KUBE_CONFIG }}
 ```
@@ -149,6 +150,9 @@ Para gerar um kubeconfig namespace-scoped no MicroK8s, use:
 Kubernetes Secrets por app:
 
 - `<app_name>-secrets`: secrets da aplicacao, criado fora do CI.
+- `secret_name`: input opcional do workflow para apontar o `envFrom.secretRef`
+  para uma Secret nativa do Kubernetes com outro nome. Se omitido, usa
+  `<app_name>-secrets`.
 - `ghcr-pull-secret`: pull secret gerado automaticamente a partir das secrets organizacionais do GHCR.
 
 Credenciais de operador/runtime:

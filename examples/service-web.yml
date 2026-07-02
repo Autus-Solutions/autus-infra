@@ -19,5 +19,6 @@ jobs:
       environment_name: production
       replicas: "1"
       image_pull_secret_name: ghcr-pull-secret
+      secret_name: autus-web-secrets
     secrets:
       KUBE_CONFIG: ${{ secrets.KUBE_CONFIG }}
