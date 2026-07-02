@@ -76,12 +76,11 @@ on:
       AUTUS_ATOMUS_GH_TOKEN:
         required: false
 
-env:
-  IMAGE_NAME: ghcr.io/autus-solutions/${{ inputs.app_name }}
-
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
+    env:
+      IMAGE_NAME: ghcr.io/autus-solutions/${{ inputs.app_name }}
     permissions:
       contents: read
       packages: write
@@ -119,6 +118,8 @@ jobs:
   deploy:
     needs: build-and-push
     runs-on: ubuntu-latest
+    env:
+      IMAGE_NAME: ghcr.io/autus-solutions/${{ inputs.app_name }}
     permissions:
       contents: read
       packages: read
