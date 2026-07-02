@@ -6,7 +6,7 @@ metadata:
   labels:
     app: ${APP_NAME}
 spec:
-  replicas: 1
+  replicas: ${REPLICAS}
   selector:
     matchLabels:
       app: ${APP_NAME}
@@ -22,7 +22,8 @@ spec:
           image: ${IMAGE}
           imagePullPolicy: Always
           ports:
-            - containerPort: 3000
+            - containerPort: ${CONTAINER_PORT}
+${PROBES_BLOCK}
           envFrom:
             - secretRef:
                 name: ${SECRET_NAME}

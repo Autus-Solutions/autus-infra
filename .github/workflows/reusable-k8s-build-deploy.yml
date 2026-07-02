@@ -16,10 +16,50 @@ on:
         required: false
         type: string
         default: ""
+      context:
+        required: false
+        type: string
+        default: .
       dockerfile:
         required: false
         type: string
         default: Dockerfile
+      build_args:
+        required: false
+        type: string
+        default: ""
+      replicas:
+        required: false
+        type: string
+        default: "1"
+      container_port:
+        required: false
+        type: string
+        default: "3000"
+      enable_probes:
+        required: false
+        type: string
+        default: "true"
+      health_path:
+        required: false
+        type: string
+        default: /health
+      ingress_hosts:
+        required: false
+        type: string
+        default: ""
+      tls_secret_name:
+        required: false
+        type: string
+        default: ""
+      ingress_annotations:
+        required: false
+        type: string
+        default: ""
+      environment_name:
+        required: false
+        type: string
+        default: production
       deploy_worker:
         required: false
         type: boolean
@@ -28,6 +68,13 @@ on:
         required: false
         type: boolean
         default: false
+    secrets:
+      KUBE_CONFIG:
+        required: true
+      KUBE_CONTEXT:
+        required: false
+      AUTUS_ATOMUS_GH_TOKEN:
+        required: false
 
 env:
   IMAGE_NAME: ghcr.io/autus-solutions/${{ inputs.app_name }}
@@ -62,11 +109,12 @@ jobs:
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
-          context: .
+          context: ${{ inputs.context }}
           file: ${{ inputs.dockerfile }}
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          build-args: ${{ inputs.build_args }}
 
   deploy:
     needs: build-and-push
@@ -84,7 +132,7 @@ jobs:
         with:
           repository: Autus-Solutions/autus-infra
           path: autus-infra
-          token: ${{ secrets.AUTUS_ATOMUS_GH_TOKEN || secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.AUTUS_ATOMUS_GH_TOKEN || github.token }}
 
       - name: Set up kubectl
         uses: azure/setup-kubectl@v3
@@ -110,13 +158,81 @@ jobs:
           if [ -z "$K8S_SECRET_NAME" ]; then
             K8S_SECRET_NAME="${{ inputs.app_name }}-secrets"
           fi
+          export PROBES_BLOCK=""
+          if [ "${{ inputs.enable_probes }}" != "false" ]; then
+            PROBES_BLOCK="$(cat <<'EOF'
+          readinessProbe:
+            httpGet:
+              path: ${HEALTH_PATH}
+              port: ${CONTAINER_PORT}
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: ${HEALTH_PATH}
+              port: ${CONTAINER_PORT}
+            initialDelaySeconds: 30
+            periodSeconds: 20
+EOF
+)"
+          fi
           
           for file in autus-infra/kubernetes/templates/*.yaml; do
             APP_NAME="${{ inputs.app_name }}" NAMESPACE="${{ inputs.namespace }}" \
             IMAGE="$FULL_IMAGE" IMAGE_PULL_SECRET="${{ inputs.image_pull_secret_name }}" \
-            SECRET_NAME="$K8S_SECRET_NAME" \
-            envsubst '$APP_NAME $NAMESPACE $IMAGE $IMAGE_PULL_SECRET $SECRET_NAME' < "$file" > "deploy_$(basename $file)"
+            SECRET_NAME="$K8S_SECRET_NAME" REPLICAS="${{ inputs.replicas }}" \
+            CONTAINER_PORT="${{ inputs.container_port }}" HEALTH_PATH="${{ inputs.health_path }}" \
+            PROBES_BLOCK="$PROBES_BLOCK" \
+            envsubst '$APP_NAME $NAMESPACE $IMAGE $IMAGE_PULL_SECRET $SECRET_NAME $REPLICAS $CONTAINER_PORT $HEALTH_PATH $PROBES_BLOCK' < "$file" > "deploy_$(basename $file)"
           done
+
+          if [ -n "${{ inputs.ingress_hosts }}" ]; then
+            annotations="$(cat <<'EOF'
+${{ inputs.ingress_annotations }}
+EOF
+)"
+            {
+              echo "apiVersion: networking.k8s.io/v1"
+              echo "kind: Ingress"
+              echo "metadata:"
+              echo "  name: ${{ inputs.app_name }}-ingress"
+              echo "  namespace: ${{ inputs.namespace }}"
+              echo "  annotations:"
+              echo "    kubernetes.io/ingress.class: \"public\""
+              while IFS= read -r annotation; do
+                [ -z "$annotation" ] && continue
+                echo "    $annotation"
+              done <<< "$annotations"
+              echo "spec:"
+              if [ -n "${{ inputs.tls_secret_name }}" ]; then
+                echo "  tls:"
+                echo "    - hosts:"
+                IFS=',' read -ra hosts <<< "${{ inputs.ingress_hosts }}"
+                for host in "${hosts[@]}"; do
+                  host="$(echo "$host" | xargs)"
+                  [ -z "$host" ] && continue
+                  echo "        - $host"
+                done
+                echo "      secretName: ${{ inputs.tls_secret_name }}"
+              fi
+              echo "  rules:"
+              IFS=',' read -ra hosts <<< "${{ inputs.ingress_hosts }}"
+              for host in "${hosts[@]}"; do
+                host="$(echo "$host" | xargs)"
+                [ -z "$host" ] && continue
+                echo "    - host: $host"
+                echo "      http:"
+                echo "        paths:"
+                echo "          - path: /"
+                echo "            pathType: Prefix"
+                echo "            backend:"
+                echo "              service:"
+                echo "                name: ${{ inputs.app_name }}"
+                echo "                port:"
+                echo "                  number: 80"
+              done
+            } > deploy_ingress.yaml
+          fi
 
       - name: Apply Kubernetes Manifests
         run: |
@@ -124,6 +240,10 @@ jobs:
           
           if [ -f deploy_service.yaml ]; then
             kubectl apply -f deploy_service.yaml -n ${{ inputs.namespace }}
+          fi
+
+          if [ -f deploy_ingress.yaml ]; then
+            kubectl apply -f deploy_ingress.yaml -n ${{ inputs.namespace }}
           fi
           
           if [ -f autus-infra/kubernetes/overlays/${{ inputs.namespace }}/ingress-${{ inputs.app_name }}.yaml ]; then
