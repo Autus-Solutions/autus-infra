@@ -167,14 +167,14 @@ jobs:
             PROBES_BLOCK="$(printf '%s\n' \
               '          readinessProbe:' \
               '            httpGet:' \
-              '              path: ${HEALTH_PATH}' \
-              '              port: ${CONTAINER_PORT}' \
+              '              path: ${{ inputs.health_path }}' \
+              '              port: ${{ inputs.container_port }}' \
               '            initialDelaySeconds: 10' \
               '            periodSeconds: 10' \
               '          livenessProbe:' \
               '            httpGet:' \
-              '              path: ${HEALTH_PATH}' \
-              '              port: ${CONTAINER_PORT}' \
+              '              path: ${{ inputs.health_path }}' \
+              '              port: ${{ inputs.container_port }}' \
               '            initialDelaySeconds: 30' \
               '            periodSeconds: 20')"
           fi
