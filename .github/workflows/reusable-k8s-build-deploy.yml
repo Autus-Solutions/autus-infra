@@ -151,6 +151,10 @@ jobs:
         run: kubectl cluster-info
 
       - name: Prepare Kubernetes Manifests
+        env:
+          INGRESS_HOSTS: ${{ inputs.ingress_hosts }}
+          INGRESS_ANNOTATIONS: ${{ inputs.ingress_annotations }}
+          TLS_SECRET_NAME: ${{ inputs.tls_secret_name }}
         run: |
           export IMAGE_TAG="sha-${GITHUB_SHA}"
           export FULL_IMAGE="${{ env.IMAGE_NAME }}:${IMAGE_TAG}"
@@ -160,21 +164,19 @@ jobs:
           fi
           export PROBES_BLOCK=""
           if [ "${{ inputs.enable_probes }}" != "false" ]; then
-            PROBES_BLOCK="$(cat <<'EOF'
-          readinessProbe:
-            httpGet:
-              path: ${HEALTH_PATH}
-              port: ${CONTAINER_PORT}
-            initialDelaySeconds: 10
-            periodSeconds: 10
-          livenessProbe:
-            httpGet:
-              path: ${HEALTH_PATH}
-              port: ${CONTAINER_PORT}
-            initialDelaySeconds: 30
-            periodSeconds: 20
-EOF
-)"
+            PROBES_BLOCK="$(printf '%s\n' \
+              '          readinessProbe:' \
+              '            httpGet:' \
+              '              path: ${HEALTH_PATH}' \
+              '              port: ${CONTAINER_PORT}' \
+              '            initialDelaySeconds: 10' \
+              '            periodSeconds: 10' \
+              '          livenessProbe:' \
+              '            httpGet:' \
+              '              path: ${HEALTH_PATH}' \
+              '              port: ${CONTAINER_PORT}' \
+              '            initialDelaySeconds: 30' \
+              '            periodSeconds: 20')"
           fi
           
           for file in autus-infra/kubernetes/templates/*.yaml; do
@@ -186,11 +188,7 @@ EOF
             envsubst '$APP_NAME $NAMESPACE $IMAGE $IMAGE_PULL_SECRET $SECRET_NAME $REPLICAS $CONTAINER_PORT $HEALTH_PATH $PROBES_BLOCK' < "$file" > "deploy_$(basename $file)"
           done
 
-          if [ -n "${{ inputs.ingress_hosts }}" ]; then
-            annotations="$(cat <<'EOF'
-${{ inputs.ingress_annotations }}
-EOF
-)"
+          if [ -n "$INGRESS_HOSTS" ]; then
             {
               echo "apiVersion: networking.k8s.io/v1"
               echo "kind: Ingress"
@@ -202,21 +200,21 @@ EOF
               while IFS= read -r annotation; do
                 [ -z "$annotation" ] && continue
                 echo "    $annotation"
-              done <<< "$annotations"
+              done <<< "$INGRESS_ANNOTATIONS"
               echo "spec:"
-              if [ -n "${{ inputs.tls_secret_name }}" ]; then
+              if [ -n "$TLS_SECRET_NAME" ]; then
                 echo "  tls:"
                 echo "    - hosts:"
-                IFS=',' read -ra hosts <<< "${{ inputs.ingress_hosts }}"
+                IFS=',' read -ra hosts <<< "$INGRESS_HOSTS"
                 for host in "${hosts[@]}"; do
                   host="$(echo "$host" | xargs)"
                   [ -z "$host" ] && continue
                   echo "        - $host"
                 done
-                echo "      secretName: ${{ inputs.tls_secret_name }}"
+                echo "      secretName: $TLS_SECRET_NAME"
               fi
               echo "  rules:"
-              IFS=',' read -ra hosts <<< "${{ inputs.ingress_hosts }}"
+              IFS=',' read -ra hosts <<< "$INGRESS_HOSTS"
               for host in "${hosts[@]}"; do
                 host="$(echo "$host" | xargs)"
                 [ -z "$host" ] && continue
