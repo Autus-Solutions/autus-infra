@@ -26,7 +26,7 @@ on:
         default: false
 
 env:
-  IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/${{ inputs.app_name }}
+  IMAGE_NAME: ghcr.io/autus-solutions/${{ inputs.app_name }}
 
 jobs:
   build-and-push:
