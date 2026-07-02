@@ -60,6 +60,8 @@ on:
     secrets:
       KUBE_CONFIG:
         required: true
+      KUBE_CONTEXT:
+        required: false
       AUTUS_GHCR_PULL_USERNAME:
         required: false
       AUTUS_GHCR_PULL_TOKEN:
@@ -132,7 +134,7 @@ jobs:
         shell: bash
         env:
           KUBE_CONFIG: ${{ secrets.KUBE_CONFIG }}
-          KUBE_CONTEXT: ${{ vars.KUBE_CONTEXT }}
+          KUBE_CONTEXT: ${{ secrets.KUBE_CONTEXT || vars.KUBE_CONTEXT }}
         run: |
           mkdir -p "$HOME/.kube"
           if [ -z "$KUBE_CONFIG" ]; then
