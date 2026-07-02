@@ -94,7 +94,7 @@ jobs:
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
-          password: ${{ github.token }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Extract metadata (tags, labels) for Docker
         id: meta
@@ -133,7 +133,6 @@ jobs:
         with:
           repository: Autus-Solutions/autus-infra
           path: autus-infra
-          token: ${{ secrets.AUTUS_ATOMUS_GH_TOKEN || github.token }}
 
       - name: Set up kubectl
         uses: azure/setup-kubectl@v3
