@@ -118,6 +118,7 @@ jobs:
   deploy:
     needs: build-and-push
     runs-on: ubuntu-latest
+    environment: ${{ inputs.environment_name }}
     env:
       IMAGE_NAME: ghcr.io/autus-solutions/${{ inputs.app_name }}
     permissions:
