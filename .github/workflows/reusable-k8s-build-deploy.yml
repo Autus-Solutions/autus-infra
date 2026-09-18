@@ -77,6 +77,10 @@ on:
         required: false
       AUTUS_ATOMUS_GH_TOKEN:
         required: false
+      AUTUS_GHCR_PUSH_USERNAME:
+        required: true
+      AUTUS_GHCR_PUSH_TOKEN:
+        required: true
 
 jobs:
   build-and-push:
@@ -97,8 +101,8 @@ jobs:
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          username: ${{ secrets.AUTUS_GHCR_PUSH_USERNAME }}
+          password: ${{ secrets.AUTUS_GHCR_PUSH_TOKEN }}
 
       - name: Extract metadata (tags, labels) for Docker
         id: meta
