@@ -260,6 +260,11 @@ jobs:
             } > deploy_ingress.yaml
           fi
 
+      - name: Instalar envsubst
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gettext-base
+
       - name: Apply Kubernetes Manifests
         run: |
           kubectl apply -f deploy_deployment.yaml -n ${{ inputs.namespace }}
